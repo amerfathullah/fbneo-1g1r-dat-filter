@@ -126,4 +126,4 @@ This script is inspired by [Retool](https://github.com/unexpectedpanda/retool), 
 
 ## License
 
-This project is released into the public domain. Use it however you like.
+This project is licensed under the [MIT License](LICENSE).
