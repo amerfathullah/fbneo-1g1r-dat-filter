@@ -33,6 +33,12 @@ Indonesia > Unknown
 - Python 3.6+
 - No external dependencies (uses only standard library)
 
+## Getting DAT Files
+
+The latest FinalBurn Neo DAT files can be obtained from the official repository:
+
+https://github.com/libretro/FBNeo/tree/master/dats
+
 ## Usage
 
 ```bash
@@ -113,6 +119,10 @@ Any Logiqx XML DAT file, including all FinalBurn Neo platform DATs:
 - ColecoVision / Fairchild Channel F
 - MSX 1
 - ZX Spectrum
+
+## Acknowledgments
+
+This script is inspired by [Retool](https://github.com/unexpectedpanda/retool), a more comprehensive ROM management tool with GUI support and advanced filtering capabilities.
 
 ## License
 
