@@ -5,11 +5,26 @@ A Python script that filters FinalBurn Neo (and other Logiqx XML) DAT files to p
 ## What It Does
 
 - **Removes clones** — entries with `cloneof` attribute are filtered out
-- **Removes non-game content** — BIOS, add-ons, applications, audio, bonus discs, coverdiscs, kiosks, samples, educationals, manuals, MIAs, multimedia, videos
-- **Removes bad/modified dumps** — bad dumps, hacks, bootlegs, fixed ROMs, cracked ROMs, pirates, unlicensed, aftermarket
-- **Removes pre-release content** — demos, prototypes, preproductions, betas, promotionals
+- **Removes non-game content** — BIOS, add-ons, applications, audio, bonus discs, coverdiscs, kiosks, samples, educationals, manuals, MIAs, multimedia, videos, system/device entries
+- **Removes bad/modified dumps** — bad dumps, hacks, bootlegs, fixed ROMs, cracked ROMs, pirates, unlicensed, aftermarket, not working
+- **Removes pre-release content** — demos, prototypes, preproductions, betas, promotionals, location tests
 - **Removes homebrew** — homebrew games and tech demos
-- **Removes games with comments** — any ROM entry that has a `<comment>` field is excluded, as comments typically indicate emulation issues, quality problems, or other known defects (e.g. imperfect sound, graphics corruption, unemulated protection, bad dump, etc.)
+- **Removes games with comments** — any ROM entry that has a `<comment>` field is excluded, as comments typically indicate emulation issues, quality problems, or other known defects
+- **Removes niche/non-mainstream genres:**
+  - *BIOS / System / Device / Utilities* — system firmware, hardware, carts, protection chips, utilities, updates; names ending in `_bios`; prefixes `neocart_*`, `ng_*`
+  - *Mahjong / Adult Mahjong* — titles containing "mahjong"; ROM prefixes `mj*`, `jan*`
+  - *Adult / Hentai / Strip / Mature* — titles containing "adult", "hentai", "strip", "sexy", "explicit"; specific ROMs like `fantsia`, `galhustl`, `zipzap`, etc.; plus all ROMs listed in `mature.ini` and `* Mature *` categories in `catver.ini`
+  - *Gambling / Casino / Slot / Fruit / Medal* — titles containing "casino", "poker", "gambling", "medal", "slot", "jackpot", "blackjack", "roulette", "bingo", "hanafuda", "skill drop", "fortune teller"; ROM prefixes `casino*`, `lucky*`, `slot*`, `m4*`, `m5*`, `c3_*`, `j6*`, `sc*`, `nfb*`, `fb*`
+  - *Pachinko / Pachislo* — titles containing "pachinko", "pachislo"; ROM prefix `pach*`
+  - *Fruit machines* — titles containing "fruit"; ROM prefix `fruit*`
+  - *Quiz / Trivia / Educational* — titles containing "quiz", "trivia", "educational"
+  - *Pinball / Mechanical / EM / Redemption* — titles containing "pinball", "electro", "redemption", "crane", "strength tester"; ROM prefix `pb*`
+  - *Tabletop / Board / Card* — titles containing "tabletop", "board game", "card game", "hanafuda", "shougi", "reversi"
+  - *Horse Racing / Fishing / Crane* — titles containing "horse rac", "fishing", "crane"
+- **Category-based filtering via Progetto Snaps INI files:**
+  - `catver.ini` — ROM-to-category mapping; excludes System/Device, Slot Machine, Gambling, Casino, Mahjong, Adult/Mature, Pinball, Electromechanical, Quiz, Tabletop, Board Game, Card Game, Medal, Handheld, Game Console, Computer, Utilities, Redemption, Horse Racing, Crane, Fishing, Multigame, Plug n Play, Unknown, and more
+  - `mature.ini` — explicit list of adult/mature-rated ROMs
+  - `catlist.ini` — section-based ROM lists with same exclusion keywords
 - **Deduplicates** — groups identical titles and picks the best regional variant
 - **Region-prioritized selection** — selects the preferred region version when multiple exist
 
@@ -40,6 +55,21 @@ The latest FinalBurn Neo DAT files can be obtained from the official repository:
 
 https://github.com/libretro/FBNeo/tree/master/dats
 
+## Getting mature.ini (Adult/Mature ROM List)
+
+The script uses the **Progetto Snaps CatVer** category pack for comprehensive category-based filtering. It reads:
+
+- `catver.ini` — ROM-to-category mapping (excludes BIOS/System/Device, Slot Machine, Gambling, Casino, Mahjong, Adult/Mature, Pinball, Electromechanical, Quiz/Trivia, Tabletop, Board/Card Game, Medal Game, Horse Racing, Crane, Fishing, Handheld, Game Console, Computer, Utilities, Redemption, Multigame, Plug n Play, Unknown, and anything marked `* Mature *`)
+- `mature.ini` — explicit list of adult/mature-rated ROMs
+- `catlist.ini` — section-based ROM lists (excludes ROMs in any section matching the same category keywords)
+- `genre.ini` / `genre_ows.ini` — genre groupings (loaded for reference)
+
+Download the pack from:
+
+https://www.progettosnaps.net/catver/
+
+Extract the archive so you have a `pS_CatVer_XXX` folder (e.g. `pS_CatVer_287`, `pS_CatVer_286`, etc.) in the same directory as the script. The script auto-detects the latest `pS_CatVer_*` folder (or specify its path with `--catver-folder`).
+
 ## Usage
 
 ```bash
@@ -55,6 +85,9 @@ python 1g1r_filter.py --output-dir 1g1r
 # Show detailed filtering info (which games are excluded/kept and why)
 python 1g1r_filter.py --verbose
 
+# Use a specific pS_CatVer folder for category-based exclusion
+python 1g1r_filter.py --catver-folder pS_CatVer_286
+
 # Combine options
 python 1g1r_filter.py -o 1g1r -v "FinalBurn Neo (ClrMame Pro XML, NES Games only).dat"
 ```
@@ -66,6 +99,7 @@ python 1g1r_filter.py -o 1g1r -v "FinalBurn Neo (ClrMame Pro XML, NES Games only
 | `files` | Input `.dat` file(s). If omitted, processes all `.dat` files in the current directory. |
 | `-o`, `--output-dir` | Output directory for filtered DAT files. Defaults to the same directory as the input. |
 | `-v`, `--verbose` | Show per-game exclusion and selection details. |
+| `-c`, `--catver-folder` | Path to `pS_CatVer_*` folder containing `catver.ini` and `UI_files/`. Auto-detected if not specified. |
 
 ## Output
 
