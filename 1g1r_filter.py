@@ -119,16 +119,6 @@ REGION_MAP.update(_EXTRA)
 # Exclusion rules
 # ===================================================================
 
-# Keywords in the <comment> field that trigger exclusion
-_COMMENT_EXCLUDES = [
-    "hack", "bootleg", "demo", "prototype", "homebrew",
-    "bios only", "hacked out protection", "unprotected version",
-    "add-on", "application", "audio", "bonus disc", "coverdisc",
-    "kiosk", "sample", "educational", "manual", "mia", "multimedia",
-    "preproduction", "promotional", "unlicensed", "aftermarket",
-    "pirate", "video", "bad dump", "fixed", "cracked",
-]
-
 # Regex patterns matched against the lowercase <description>
 _DESC_EXCLUDE_PATTERNS = [
     # Hacks, bootlegs, piracy
@@ -204,13 +194,11 @@ def is_excluded(game_elem):
     category = game_elem.findtext("category", "")
 
     desc_lower = desc.lower()
-    comment_lower = comment.lower()
     mfr_lower = manufacturer.lower().strip()
 
-    # ---- comment-based exclusion ----
-    for kw in _COMMENT_EXCLUDES:
-        if kw in comment_lower:
-            return True, f"Comment: {kw}"
+    # ---- comment-based exclusion (any comment = exclude) ----
+    if comment and comment.strip():
+        return True, f"Comment: {comment.strip()}"
 
     # ---- description-based exclusion ----
     for pattern, reason in _DESC_EXCLUDE_PATTERNS:
