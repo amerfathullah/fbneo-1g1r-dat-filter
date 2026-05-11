@@ -9,6 +9,7 @@ A Python script that filters FinalBurn Neo (and other Logiqx XML) DAT files to p
 - **Removes bad/modified dumps** — bad dumps, hacks, bootlegs, fixed ROMs, cracked ROMs, pirates, unlicensed, aftermarket
 - **Removes pre-release content** — demos, prototypes, preproductions, betas, promotionals
 - **Removes homebrew** — homebrew games and tech demos
+- **Removes games with comments** — any ROM entry that has a `<comment>` field is excluded, as comments typically indicate emulation issues, quality problems, or other known defects (e.g. imperfect sound, graphics corruption, unemulated protection, bad dump, etc.)
 - **Deduplicates** — groups identical titles and picks the best regional variant
 - **Region-prioritized selection** — selects the preferred region version when multiple exist
 
