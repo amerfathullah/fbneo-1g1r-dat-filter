@@ -27,6 +27,11 @@ A Python script that filters FinalBurn Neo (and other Logiqx XML) DAT files to p
   - `catlist.ini` — section-based ROM lists with same exclusion keywords
 - **Deduplicates** — groups identical titles and picks the best regional variant
 - **Region-prioritized selection** — selects the preferred region version when multiple exist
+- **Clone-count priority** — when scores are tied, prefers the ROM that has the most clones referencing it (indicating the canonical/primary version)
+- **Include list override** — ROMs listed in `include.txt` bypass all exclusion filters and are always kept, even if they match excluded categories (e.g., mahjong, adult, clones)
+- **Exclude list override** — ROMs listed in `exclude.txt` are always excluded, even if they would normally pass all filters
+- **Conflict detection** — if a ROM appears in both `include.txt` and `exclude.txt`, the script stops and lists the conflicting entries
+- **Deprioritizes dedicated hardware** — PCB, JAMMA PCB, and Bubble System variants are deprioritized in favor of standard board/cartridge versions
 
 ## Region Priority
 
@@ -70,6 +75,37 @@ https://www.progettosnaps.net/catver/
 
 Extract the archive so you have a `pS_CatVer_XXX` folder (e.g. `pS_CatVer_287`, `pS_CatVer_286`, etc.) in the same directory as the script. The script auto-detects the latest `pS_CatVer_*` folder (or specify its path with `--catver-folder`).
 
+## Include List (Force-Keep ROMs)
+
+The script supports an `include.txt` file that lists ROMs which should **never** be excluded, regardless of any filtering rules. This is useful for keeping specific games that would otherwise be filtered out (e.g., a mahjong game you enjoy, or a clone you prefer).
+
+**Format:** One ROM name per line, with or without `.zip` extension. Lines starting with `;` or `#` are comments.
+
+```
+# My must-keep ROMs
+mahretsu.zip
+janshin.zip
+bakatono
+```
+
+By default, the script looks for `include.txt` in the current directory. Use `--include-file` to specify a different path, or `--include-file ""` to disable.
+
+## Exclude List (Force-Remove ROMs)
+
+The script supports an `exclude.txt` file that lists ROMs which should **always** be excluded, even if they would normally pass all filters. This is useful for removing specific games you don't want in your set.
+
+**Format:** One ROM name per line, with or without `.zip` extension. Lines starting with `;` or `#` are comments.
+
+```
+# ROMs I don't want
+some_game.zip
+another_game
+```
+
+By default, the script looks for `exclude.txt` in the current directory. Use `--exclude-file` to specify a different path, or `--exclude-file ""` to disable.
+
+**Note:** If a ROM appears in both `include.txt` and `exclude.txt`, the script will stop with an error and list the conflicting entries. Resolve the conflict by removing the ROM from one of the files.
+
 ## Usage
 
 ```bash
@@ -90,6 +126,18 @@ python 1g1r_filter.py --catver-folder pS_CatVer_286
 
 # Combine options
 python 1g1r_filter.py -o 1g1r -v "FinalBurn Neo (ClrMame Pro XML, NES Games only).dat"
+
+# Use a custom include list
+python 1g1r_filter.py --include-file my_favorites.txt
+
+# Use a custom exclude list
+python 1g1r_filter.py --exclude-file my_blacklist.txt
+
+# Disable the include list (process without overrides)
+python 1g1r_filter.py --include-file ""
+
+# Disable the exclude list
+python 1g1r_filter.py --exclude-file ""
 ```
 
 ### Options
@@ -100,6 +148,8 @@ python 1g1r_filter.py -o 1g1r -v "FinalBurn Neo (ClrMame Pro XML, NES Games only
 | `-o`, `--output-dir` | Output directory for filtered DAT files. Defaults to the same directory as the input. |
 | `-v`, `--verbose` | Show per-game exclusion and selection details. |
 | `-c`, `--catver-folder` | Path to `pS_CatVer_*` folder containing `catver.ini` and `UI_files/`. Auto-detected if not specified. |
+| `-i`, `--include-file` | Path to a text file listing ROMs to always keep (one per line, with or without `.zip`). Default: `include.txt` in the current directory. |
+| `-e`, `--exclude-file` | Path to a text file listing ROMs to always exclude (one per line, with or without `.zip`). Default: `exclude.txt` in the current directory. |
 
 ## Output
 
@@ -138,7 +188,7 @@ Processing: FinalBurn Neo (ClrMame Pro XML, ZX Spectrum Games only).dat
 1. **Parse** — Reads the Logiqx XML DAT file
 2. **Exclude** — Filters out clones, BIOS, non-game content, hacks, demos, homebrew, bad dumps, etc. using XML attributes (`cloneof`, `isbios`), `<comment>` keywords, `<description>` regex patterns, `<category>`, and `<manufacturer>` fields
 3. **Group** — Groups remaining games by normalized title (strips parenthetical metadata, punctuation, and leading "The")
-4. **Score & Select** — For each group, scores candidates by region priority, revision number, alt/set flags, and picks the best one
+4. **Score & Select** — For each group, scores candidates by region priority, PCB/dedicated-hardware penalty, clone count (more clones = canonical parent), alt/set flags, revision number, and picks the best one
 5. **Write** — Outputs a new DAT file with only the selected games, sorted alphabetically
 
 ## Supported DAT Formats
