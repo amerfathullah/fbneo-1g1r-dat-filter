@@ -507,6 +507,38 @@ def load_genre_ini(filepath):
     return names
 
 
+def _load_rom_list(filepath):
+    """Load a text file and return a set of lowercase ROM names (without .zip)."""
+    names = set()
+    if not filepath or not os.path.isfile(filepath):
+        return names
+    with open(filepath, "r", encoding="utf-8", errors="ignore") as fh:
+        for line in fh:
+            line = line.strip()
+            if line and not line.startswith(";") and not line.startswith("#"):
+                # Strip .zip extension if present
+                if line.lower().endswith(".zip"):
+                    line = line[:-4]
+                names.add(line.lower())
+    return names
+
+
+def load_include_list(filepath):
+    """Load an include list file and return a set of lowercase ROM names (without .zip)."""
+    return _load_rom_list(filepath)
+
+
+def load_exclude_list(filepath):
+    """Load an exclude list file and return a set of lowercase ROM names (without .zip)."""
+    return _load_rom_list(filepath)
+
+
+def check_include_exclude_conflicts(include_names, exclude_names):
+    """Check for ROMs present in both include and exclude lists.
+    Returns the set of conflicting names, or an empty set if none."""
+    return include_names & exclude_names
+
+
 def load_all_ini_exclusions(catver_folder=None):
     """Load all INI files and return a merged set of excluded ROM names + catver dict."""
     excluded_names = set()
@@ -555,8 +587,20 @@ def load_all_ini_exclusions(catver_folder=None):
     return excluded_names, catver_map
 
 
-def is_excluded(game_elem, mature_names=None, catver_map=None):
+def is_excluded(game_elem, mature_names=None, catver_map=None, include_names=None, exclude_names=None):
     """Return (True, reason) if the game should be filtered out, else (False, '')."""
+
+    # ---- include list override (never exclude these ROMs) ----
+    if include_names:
+        name_check = game_elem.get("name", "").lower()
+        if name_check in include_names:
+            return False, ""
+
+    # ---- exclude list override (always exclude these ROMs) ----
+    if exclude_names:
+        name_check = game_elem.get("name", "").lower()
+        if name_check in exclude_names:
+            return True, "Exclude list"
 
     # ---- clone filtering ----
     if game_elem.get("cloneof"):
@@ -707,11 +751,21 @@ def _revision(desc):
     return 0
 
 
-def score_game(game_elem):
+def _is_pcb(desc):
+    """Return 1 if the description indicates a dedicated PCB/hardware variant."""
+    return 1 if re.search(r"\b(?:jamma\s*)?pcb\b|bubble\s*system\b", desc, re.IGNORECASE) else 0
+
+
+def score_game(game_elem, clone_counts=None):
     """Return a sort-key tuple (lower = better candidate to keep)."""
     desc = game_elem.findtext("description", "")
+    name = game_elem.get("name", "").lower()
+    # Negate clone count so more clones = lower (better) score
+    clone_score = -(clone_counts.get(name, 0)) if clone_counts else 0
     return (
         _region_score(detect_regions(desc)),
+        _is_pcb(desc),
+        clone_score,
         _is_alt(desc),
         _set_number(desc),
         _revision(desc),
@@ -780,7 +834,7 @@ def write_dat(filepath, preamble, root, selected):
 # Main processing
 # ===================================================================
 
-def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, catver_map=None):
+def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, catver_map=None, include_names=None, exclude_names=None):
     """Filter one DAT file -> 1G1R version.  Returns (kept, total)."""
     basename = os.path.basename(input_path)
     print(f"\nProcessing: {basename}")
@@ -795,7 +849,7 @@ def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, c
     kept = []
     reasons = defaultdict(int)
     for g in all_games:
-        ex, reason = is_excluded(g, mature_names=mature_names, catver_map=catver_map)
+        ex, reason = is_excluded(g, mature_names=mature_names, catver_map=catver_map, include_names=include_names, exclude_names=exclude_names)
         if ex:
             reasons[reason] += 1
             if verbose:
@@ -807,6 +861,13 @@ def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, c
     print(f"  Excluded         : {total - len(kept)}")
     for r, c in sorted(reasons.items(), key=lambda x: -x[1]):
         print(f"    {r:30s}  {c}")
+
+    # --- Phase 1b: build clone count map (how many clones reference each parent) ---
+    clone_counts = defaultdict(int)
+    for g in all_games:
+        parent = g.get("cloneof", "").lower()
+        if parent:
+            clone_counts[parent] += 1
 
     # --- Phase 2: group by title ---
     groups = defaultdict(list)
@@ -823,7 +884,7 @@ def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, c
             selected.append(games[0])
             continue
 
-        scored = sorted(games, key=score_game)
+        scored = sorted(games, key=lambda g: score_game(g, clone_counts))
         selected.append(scored[0])
         dupes += len(scored) - 1
 
@@ -868,7 +929,32 @@ def main():
     ap.add_argument("-c", "--catver-folder", default=None,
                     help="Path to pS_CatVer_* folder containing catver.ini and UI_files/. "
                          "Auto-detected if not specified.")
+    ap.add_argument("-i", "--include-file", default="include.txt",
+                    help="Path to a text file listing ROMs to always keep (one per line, "
+                         "with or without .zip). Default: include.txt in the current directory.")
+    ap.add_argument("-e", "--exclude-file", default="exclude.txt",
+                    help="Path to a text file listing ROMs to always exclude (one per line, "
+                         "with or without .zip). Default: exclude.txt in the current directory.")
     args = ap.parse_args()
+
+    # Load include list (ROMs that bypass all exclusion filters)
+    include_names = load_include_list(args.include_file)
+    if include_names:
+        print(f"Include list: {len(include_names)} ROMs will bypass exclusion filters")
+
+    # Load exclude list (ROMs that are always excluded)
+    exclude_names = load_exclude_list(args.exclude_file)
+    if exclude_names:
+        print(f"Exclude list: {len(exclude_names)} ROMs will be force-excluded")
+
+    # Check for conflicts between include and exclude lists
+    conflicts = check_include_exclude_conflicts(include_names, exclude_names)
+    if conflicts:
+        print(f"\nERROR: {len(conflicts)} ROM(s) found in both include and exclude lists:")
+        for name in sorted(conflicts):
+            print(f"  {name}")
+        print("\nResolve the conflicts by removing duplicates from one of the lists.")
+        sys.exit(1)
 
     # Load all INI-based exclusions (auto-detect pS_CatVer_* folder)
     ini_excluded_names, catver_map = load_all_ini_exclusions(args.catver_folder)
@@ -887,7 +973,7 @@ def main():
     for fp in sorted(files):
         try:
             sel, tot = process_dat(fp, args.output_dir, args.verbose,
-                                   ini_excluded_names, catver_map)
+                                   ini_excluded_names, catver_map, include_names, exclude_names)
             grand_selected += sel
             grand_total += tot
         except Exception as e:
