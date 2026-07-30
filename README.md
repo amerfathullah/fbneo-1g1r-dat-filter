@@ -187,7 +187,7 @@ Processing: FinalBurn Neo (ClrMame Pro XML, ZX Spectrum Games only).dat
 
 1. **Parse** — Reads the Logiqx XML DAT file
 2. **Exclude** — Filters out clones, BIOS, non-game content, hacks, demos, homebrew, bad dumps, etc. using XML attributes (`cloneof`, `isbios`), `<comment>` keywords, `<description>` regex patterns, `<category>`, and `<manufacturer>` fields
-3. **Group** — Groups remaining games by normalized title (strips parenthetical metadata, punctuation, and leading "The")
+3. **Group** — Groups remaining games by normalized title (strips parenthetical metadata, punctuation, and leading "The"), disambiguated by source driver file so different games that share a normalized title (e.g. SNK's *Main Event* vs Konami's *The Main Event*) are kept as separate entries
 4. **Score & Select** — For each group, scores candidates by region priority, PCB/dedicated-hardware penalty, clone count (more clones = canonical parent), alt/set flags, revision number, and picks the best one
 5. **Write** — Outputs a new DAT file with only the selected games, sorted alphabetically
 
