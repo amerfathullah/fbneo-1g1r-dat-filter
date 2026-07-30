@@ -874,7 +874,12 @@ def process_dat(input_path, output_dir=None, verbose=False, mature_names=None, c
     for g in kept:
         desc = g.findtext("description", "")
         title = normalize_title(desc)
-        groups[grouping_key(title)].append(g)
+        key = grouping_key(title)
+        # Different drivers = different games even if titles normalize the same
+        sourcefile = g.get("sourcefile", "")
+        if sourcefile:
+            key = f"{key}|{sourcefile.lower()}"
+        groups[key].append(g)
 
     # --- Phase 3: pick best per group ---
     selected = []
